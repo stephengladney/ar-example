@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import "./App.css"
 import arule from "automation-rules"
-import type { Operator, Rule } from "automation-rules/dist/types"
+import type { Operator } from "automation-rules/dist/types"
 import { getRules } from "automation-rules/dist/functions/rule"
 
 type Person = {
@@ -47,16 +47,14 @@ function App() {
     // Define how to log successes and failures of rules (optional)
     // Note: The callback gives you access to the rule, result (isSuccess and failedCondition) and data
 
-    arule.setLogCallback(
-      (rule: Rule, result: { isSuccess: boolean }, person: Person) => {
-        setLogs((logs) => [
-          ...logs,
-          `${result.isSuccess ? "SUCCESS: " : "FAIL: "} ${rule.description} (${
-            person.name
-          }, ${person.age}, ${person.hometown})`,
-        ])
-      }
-    )
+    arule.setLogCallback((rule, { isSuccess }, person) => {
+      setLogs((logs) => [
+        ...logs,
+        `${isSuccess ? "SUCCESS: " : "FAIL: "} ${rule.description} (${
+          person.name
+        }, ${person.age}, ${person.hometown})`,
+      ])
+    })
   }, [])
 
   const addNewPerson = () => {
