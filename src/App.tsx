@@ -45,9 +45,12 @@ function App() {
 
   useEffect(() => {
     // Define how to log successes and failures of rules (optional)
-    // Note: The callback gives you access to the rule, result (isSuccess and failedCondition) and data
 
-    arule.setLogCallback((rule, { isSuccess }, person) => {
+    // Note: The callback gives you access to the rule, whether or not
+    // the rule was successful, data and if the rule was not successful,
+    // the first condition that failed.
+
+    arule.setLogCallback((rule, isSuccess, person) => {
       setLogs((logs) => [
         ...logs,
         `${isSuccess ? "SUCCESS: " : "FAIL: "} ${rule.description} (${
@@ -265,7 +268,7 @@ function App() {
                     </span>
                     {rule.conditions[0].operator}{" "}
                     <span className="font-bold text-orange-600">
-                      {rule.conditions[0].value},
+                      {rule.conditions[0].value}
                     </span>
                   </span>
                 </div>
