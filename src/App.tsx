@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react"
 import "./App.css"
 import arule from "automation-rules"
-import type { Operator } from "automation-rules/dist/types"
-import { getRules } from "automation-rules/dist/functions/rule"
+import type { Operator } from "automation-rules"
 
 type Person = {
   name: string
@@ -119,7 +118,7 @@ function App() {
     )
 
     // Add the rule to the active ruleset
-    arule.addRules(newRule)
+    arule.addRule(newRule)
 
     // Clear form inputs and hide form
     clearRuleParams()
@@ -253,7 +252,7 @@ function App() {
           <div className="text-left mt-8">
             <h3 className="font-bold mb-3">Rules</h3>
             {/* Use getRules() to return an array of the active rules */}
-            {getRules().map((rule) => (
+            {arule.getRules().map((rule) => (
               <div className="p-2 border-solid border-[1px] border-slate-400 mb-2">
                 <div>
                   <span className="font-bold text-sm text-slate-600">
