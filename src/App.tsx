@@ -2,18 +2,13 @@ import { useEffect, useState } from "react"
 import "./App.css"
 import arule from "automation-rules"
 import type { Operator } from "automation-rules"
+import { params, triggers } from "./arules"
 
 type Person = {
   name: string
   age: number
   hometown: string
 }
-
-const triggers = [
-  "When a person is created",
-  "When a person is deleted",
-] as const
-type Trigger = (typeof triggers)[number]
 
 // Generate callback functions
 const getAlertCallback = (msg: string) => () => alert(msg)
@@ -24,15 +19,28 @@ const getBackgroundColorCallback = (color: string) => () => {
 type Action = "Show an alert" | "Change background"
 
 // Enable logging for successes and failures
-arule.setLogging({ onSuccess: true, onFailure: true })
+arule.log.setLogging({ onSuccess: true, onFailure: true })
+
+// Get values from code
+const personParamKeys = arule.params.keys.getAllBySchema(params, "person")
+const personTriggerEvents = arule.triggers.events.getAllBySchema(
+  triggers,
+  "person"
+)
+
+// Create types for React
+type PersonTriggerEvent = (typeof personTriggerEvents)[number]
+type PersonParamKey = (typeof personParamKeys)[number]
 
 function App() {
   const [people, setPeople] = useState<Person[]>([])
   const [showRuleForm, setShowRuleForm] = useState(false)
-  const [newRuleTrigger, setNewRuleTrigger] = useState<Trigger>(
-    "When a person is created"
+  const [newRuleTrigger, setNewRuleTrigger] = useState<PersonTriggerEvent>(
+    personTriggerEvents[0]
   )
-  const [newRuleParam, setNewRuleParam] = useState<keyof Person>("name")
+  const [newRuleParam, setNewRuleParam] = useState<PersonParamKey>(
+    personParamKeys[0]
+  )
   const [newRuleParamValue, setNewRuleParamValue] = useState<string | number>(
     ""
   )
@@ -45,11 +53,13 @@ function App() {
   useEffect(() => {
     // Define how to log successes and failures of rules (optional)
 
-    // Note: The callback gives you access to the rule, whether or not
-    // the rule was successful, data and if the rule was not successful,
-    // the first condition that failed.
+    // Note: The callback gives you access to 4 things:
+    // 1. The rule,
+    // 2. Whether or not the rule was successful
+    // 3. The data evaluated
+    // 4. If the rule was not successful, the first condition that failed.
 
-    arule.setLogCallback((rule, isSuccess, person) => {
+    arule.log.setLogCallback((rule, isSuccess, person) => {
       setLogs((logs) => [
         ...logs,
         `${isSuccess ? "SUCCESS: " : "FAIL: "} ${rule.description} (${
@@ -66,7 +76,15 @@ function App() {
     setPeople((people) => [...people, { name, age, hometown }])
 
     // Execute all created rules with the create person trigger
-    arule.executeRulesWithTrigger("When a person is created", {
+    const personCreatedTrigger = arule.triggers.getBySchemaAndEvent(
+      triggers,
+      "person",
+      "When a person is created"
+    )
+    // console.log(arule.rules.getAllByTrigger(personCreatedTrigger))
+    console.log(arule.rules.getAll())
+
+    arule.rules.executeAllByTrigger(personCreatedTrigger, {
       name,
       age,
       hometown,
@@ -75,7 +93,12 @@ function App() {
 
   const removePerson = (i: number) => {
     // Execute all created rules with the delete person trigger
-    arule.executeRulesWithTrigger("When a person is deleted", people[i])
+    const personRemovedTrigger = arule.triggers.getBySchemaAndEvent(
+      triggers,
+      "person",
+      "When a person is deleted"
+    )
+    arule.rules.executeAllByTrigger(personRemovedTrigger, people[i])
 
     // Remove the person
     setPeople((people) => [...people.slice(0, i), ...people.slice(i + 1)])
@@ -92,8 +115,13 @@ function App() {
 
   const createNewRule = () => {
     // Use the parameter, operator and value provided by the user
-    const condition = arule.condition<Person>(
-      newRuleParam,
+    const selectedParam = arule.params.getBySchemaAndKey(
+      params,
+      "person",
+      newRuleParam
+    )
+    const condition = arule.conditions.create(
+      selectedParam,
       newRuleOperator,
       newRuleParamValue
     )
@@ -109,16 +137,22 @@ function App() {
         : `Set background to "${newRuleActionValue}"`
 
     // Create a new rule with paramters provided by the user
-    const newRule = arule.rule(
-      newRuleTrigger,
+    const selectedTrigger = arule.triggers.getBySchemaAndEvent(
+      triggers,
+      "person",
+      newRuleTrigger
+    )
+    arule.rules.create(
+      selectedTrigger,
       [condition],
       callback,
       callbackDescription,
       newRuleName
     )
 
-    // Add the rule to the active ruleset
-    arule.addRule(newRule)
+    console.log(arule.rules.getAll())
+    console.log(selectedTrigger)
+    console.log(arule.rules.getAllByTrigger(selectedTrigger))
 
     // Clear form inputs and hide form
     clearRuleParams()
@@ -144,11 +178,17 @@ function App() {
                 </div>
                 <select
                   className="border-[1px] border-solid border-black p-2"
-                  onChange={(e) => setNewRuleTrigger(e.target.value as Trigger)}
+                  onChange={(e) =>
+                    setNewRuleTrigger(JSON.parse(e.target.value))
+                  }
                 >
-                  {triggers.map((trigger) => (
-                    <option>{trigger}</option>
-                  ))}
+                  {arule.triggers
+                    .getAllBySchema(triggers, "person")
+                    .map((trigger) => (
+                      <option value={JSON.stringify(trigger)}>
+                        {trigger.event}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div className="grid grid-cols-2">
@@ -157,13 +197,13 @@ function App() {
                 </div>
                 <select
                   className="border-[1px] border-solid border-black p-2"
-                  onChange={(e) =>
-                    setNewRuleParam(e.target.value as keyof Person)
-                  }
+                  onChange={(e) => setNewRuleParam(JSON.parse(e.target.value))}
                 >
-                  {["name", "age", "hometown"].map((param) => (
-                    <option>{param}</option>
-                  ))}
+                  {arule.params
+                    .getAllBySchema(params, "person")
+                    .map((param) => (
+                      <option value={JSON.stringify(param)}>{param.key}</option>
+                    ))}
                 </select>
               </div>
               <div className="grid grid-cols-2">
@@ -252,7 +292,7 @@ function App() {
           <div className="text-left mt-8">
             <h3 className="font-bold mb-3">Rules</h3>
             {/* Use getRules() to return an array of the active rules */}
-            {arule.getRules().map((rule) => (
+            {arule.rules.getAll().map((rule) => (
               <div className="p-2 border-solid border-[1px] border-slate-400 mb-2">
                 <div>
                   <span className="font-bold text-sm text-slate-600">
@@ -261,9 +301,9 @@ function App() {
                 </div>
                 <div>
                   <span className="text-sm">
-                    <span className="font-bold">{rule.trigger}</span> and{" "}
+                    <span className="font-bold">{rule.trigger.event}</span> and{" "}
                     <span className="font-bold text-blue-600">
-                      {rule.conditions[0].param}{" "}
+                      {rule.conditions[0].param.key}{" "}
                     </span>
                     {rule.conditions[0].operator}{" "}
                     <span className="font-bold text-orange-600">
